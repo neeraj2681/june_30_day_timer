@@ -1,12 +1,33 @@
 import streamlit as st
 from datetime import datetime, timezone, timedelta
 import time
+import json
+import os
 
 # ── Config ──────────────────────────────────────────────────────────────────
-START_DT = datetime(2026, 6, 12, 22, 0, 0,
-                    tzinfo=timezone(timedelta(hours=5, minutes=30)))  # 10 PM IST
-DURATION  = timedelta(days=30)
-END_DT    = START_DT + DURATION
+IST = timezone(timedelta(hours=5, minutes=30))
+DEFAULT_START_DT = datetime(2026, 6, 12, 22, 0, 0, tzinfo=IST)  # 10 PM IST
+DURATION = timedelta(days=30)
+STATE_FILE = os.path.join(os.path.dirname(__file__), ".progress_state.json")
+
+
+def load_start_dt() -> datetime:
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE) as f:
+                data = json.load(f)
+            ts = data.get("start_ts")
+            if ts:
+                return datetime.fromtimestamp(ts, tz=IST)
+        except Exception:
+            pass
+    return DEFAULT_START_DT
+
+
+def save_start_dt(dt: datetime):
+    with open(STATE_FILE, "w") as f:
+        json.dump({"start_ts": dt.timestamp()}, f)
+
 
 st.set_page_config(page_title="30-Day Progress", page_icon="⏳", layout="centered")
 
@@ -114,40 +135,36 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-def fmt_duration(td: timedelta) -> tuple[str, str]:
-    """Returns (value_str, unit_str) for the remaining/elapsed display."""
+def fmt_duration(td: timedelta) -> str:
     total_secs = int(abs(td.total_seconds()))
     days    = total_secs // 86400
     hours   = (total_secs % 86400) // 3600
     minutes = (total_secs % 3600)  // 60
     secs    = total_secs % 60
-    return f"{days}d {hours:02d}h {minutes:02d}m {secs:02d}s", ""
+    return f"{days}d {hours:02d}h {minutes:02d}m {secs:02d}s"
 
 
-def render():
-    now     = datetime.now(tz=timezone.utc).astimezone(timezone(timedelta(hours=5, minutes=30)))
-    elapsed = now - START_DT
-    total   = DURATION
+def render(start_dt: datetime):
+    end_dt  = start_dt + DURATION
+    now     = datetime.now(tz=IST)
+    elapsed = now - start_dt
 
-    if now < START_DT:
-        # Not started yet
-        time_to_start, _ = fmt_duration(START_DT - now)
+    if now < start_dt:
+        time_to_start = fmt_duration(start_dt - now)
         pct = 0.0
         status = "not_started"
-    elif now >= END_DT:
+    elif now >= end_dt:
         pct = 100.0
         status = "done"
         elapsed = DURATION
     else:
-        pct = min((elapsed.total_seconds() / total.total_seconds()) * 100, 100.0)
+        pct = min((elapsed.total_seconds() / DURATION.total_seconds()) * 100, 100.0)
         status = "running"
 
-    elapsed_str, _ = fmt_duration(elapsed if status != "not_started" else timedelta(0))
-    remaining_td   = max(END_DT - now, timedelta(0))
-    remaining_str, _ = fmt_duration(remaining_td)
-
-    # ── Card ─────────────────────────────────────────────────────────────────
-    bar_width = min(pct, 100.0)
+    elapsed_str   = fmt_duration(elapsed if status != "not_started" else timedelta(0))
+    remaining_td  = max(end_dt - now, timedelta(0))
+    remaining_str = fmt_duration(remaining_td)
+    bar_width     = min(pct, 100.0)
 
     if status == "not_started":
         big_display = f"""
@@ -162,9 +179,9 @@ def render():
         big_display = f'<div class="big-pct">{pct:.3f}%</div>'
         pct_display = '<div class="pct-label">of 30-day goal</div>'
 
-    # Elapsed days/hours for stat
-    el_secs = elapsed.total_seconds()
-    el_days = el_secs / 86400
+    el_days = elapsed.total_seconds() / 86400
+    started_label = start_dt.strftime("%-d %b %Y, %-I:%M %p IST")
+    ended_label   = end_dt.strftime("%-d %b %Y, %-I:%M %p IST")
 
     html = f"""
     <div class="main-card">
@@ -184,7 +201,7 @@ def render():
         </div>
         <div class="stat-box">
           <div class="stat-label">Remaining</div>
-          <div class="stat-value">{(30 - el_days):.3f} days</div>
+          <div class="stat-value">{max(30 - el_days, 0):.3f} days</div>
           <div class="stat-sub">{remaining_str}</div>
         </div>
         <div class="stat-box">
@@ -195,7 +212,7 @@ def render():
       </div>
 
       <div style="margin-top:24px;font-size:0.72rem;color:#475569;letter-spacing:0.05em;">
-        Started: 12 Jun 2026, 10:00 PM IST &nbsp;·&nbsp; Ends: 12 Jul 2026, 10:00 PM IST
+        Started: {started_label} &nbsp;·&nbsp; Ends: {ended_label}
       </div>
     </div>
     """
@@ -203,12 +220,18 @@ def render():
     return status
 
 
-status = render()
+# ── Main ─────────────────────────────────────────────────────────────────────
+start_dt = load_start_dt()
+status = render(start_dt)
 
-# Auto-refresh every second while running
-if status == "running":
-    time.sleep(1)
+st.markdown("<div style='margin-top:16px;text-align:center;'>", unsafe_allow_html=True)
+if st.button("🔄 Reset Progress", help="Restart the 30-day countdown from right now"):
+    now = datetime.now(tz=IST)
+    save_start_dt(now)
     st.rerun()
-elif status == "not_started":
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Auto-refresh every second while active
+if status in ("running", "not_started"):
     time.sleep(1)
     st.rerun()
