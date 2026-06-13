@@ -3,8 +3,8 @@ from datetime import datetime, timezone, timedelta
 import time
 
 # ── Config ──────────────────────────────────────────────────────────────────
-START_DT = datetime(2026, 6, 5, 17, 0, 0,
-                    tzinfo=timezone(timedelta(hours=5, minutes=30)))  # 5 PM IST
+START_DT = datetime(2026, 6, 12, 22, 0, 0,
+                    tzinfo=timezone(timedelta(hours=5, minutes=30)))  # 10 PM IST
 DURATION  = timedelta(days=30)
 END_DT    = START_DT + DURATION
 
@@ -195,7 +195,7 @@ def render():
       </div>
 
       <div style="margin-top:24px;font-size:0.72rem;color:#475569;letter-spacing:0.05em;">
-        Started: 5 Jun 2026, 5:00 PM IST &nbsp;·&nbsp; Ends: 5 Jul 2026, 5:00 PM IST
+        Started: 12 Jun 2026, 10:00 PM IST &nbsp;·&nbsp; Ends: 12 Jul 2026, 10:00 PM IST
       </div>
     </div>
     """
