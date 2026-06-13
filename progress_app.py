@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date, time as dtime
 import time
 import json
 import os
@@ -70,7 +70,6 @@ st.markdown("""
     letter-spacing: 0.05em;
   }
 
-  /* Progress bar track */
   .bar-track {
     background: rgba(255,255,255,0.08);
     border-radius: 999px;
@@ -88,7 +87,6 @@ st.markdown("""
     box-shadow: 0 0 14px rgba(124,58,237,0.6);
   }
 
-  /* Stats row */
   .stats-row {
     display: flex;
     justify-content: space-between;
@@ -179,7 +177,7 @@ def render(start_dt: datetime):
         big_display = f'<div class="big-pct">{pct:.3f}%</div>'
         pct_display = '<div class="pct-label">of 30-day goal</div>'
 
-    el_days = elapsed.total_seconds() / 86400
+    el_days       = elapsed.total_seconds() / 86400
     started_label = start_dt.strftime("%-d %b %Y, %-I:%M %p IST")
     ended_label   = end_dt.strftime("%-d %b %Y, %-I:%M %p IST")
 
@@ -224,12 +222,23 @@ def render(start_dt: datetime):
 start_dt = load_start_dt()
 status = render(start_dt)
 
-st.markdown("<div style='margin-top:16px;text-align:center;'>", unsafe_allow_html=True)
-if st.button("🔄 Reset Progress", help="Restart the 30-day countdown from right now"):
-    now = datetime.now(tz=IST)
-    save_start_dt(now)
-    st.rerun()
-st.markdown("</div>", unsafe_allow_html=True)
+# ── Start time picker ─────────────────────────────────────────────────────────
+st.markdown("<br>", unsafe_allow_html=True)
+with st.expander("⚙️ Set custom start date & time (IST)"):
+    col1, col2 = st.columns(2)
+    with col1:
+        picked_date = st.date_input("Start date", value=start_dt.date())
+    with col2:
+        picked_time = st.time_input("Start time (IST)", value=start_dt.time())
+
+    if st.button("✅ Apply", type="primary"):
+        new_start = datetime(
+            picked_date.year, picked_date.month, picked_date.day,
+            picked_time.hour, picked_time.minute, 0,
+            tzinfo=IST,
+        )
+        save_start_dt(new_start)
+        st.rerun()
 
 # Auto-refresh every second while active
 if status in ("running", "not_started"):
