@@ -159,7 +159,7 @@ def render():
         big_display = '<div class="done-banner">🎉 100.000% Complete!</div>'
         pct_display = ""
     else:
-        big_display = f'<div class="big-pct">{pct:.5f}%</div>'
+        big_display = f'<div class="big-pct">{pct:.3f}%</div>'
         pct_display = '<div class="pct-label">of 30-day goal</div>'
 
     # Elapsed days/hours for stat
@@ -173,7 +173,7 @@ def render():
       {pct_display}
 
       <div class="bar-track">
-        <div class="bar-fill" style="width:{bar_width:.5f}%"></div>
+        <div class="bar-fill" style="width:{bar_width:.3f}%"></div>
       </div>
 
       <div class="stats-row">
